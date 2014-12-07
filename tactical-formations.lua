@@ -664,6 +664,7 @@ function widget:MouseMove(mx, my, dx, dy, mButton)
 	-- Get clicked position
 	local _, pos = spTraceScreenRay(mx, my, true, inMinimap)
 	if not pos then return false end
+  gFormationStopPosition = pos
 	
 	return false
 end
@@ -675,11 +676,13 @@ function widget:MouseRelease(mx, my, mButton)
   gDrawingFormation = false
   local scaleX = math.abs(gFormationStopPosition[1] - gFormationStartPosition[1])
   local scaleY = math.abs(gFormationStopPosition[3] - gFormationStartPosition[3])
+
+  local result = issueFormation(Spring.GetSelectedUnits(), gFormationStartPosition[1], gFormationStartPosition[3], scaleX, scaleY, 0)
 	
   gFormationStartPosition = nil
   gFormationStopPosition = nil
 
-  return issueFormation(Spring.GetSelectedUnits(), pos[1], pos[3], scaleX, scaleY, 0)
+  return result
 end
 
 function widget:KeyRelease(key)
@@ -810,8 +813,22 @@ function widget:ViewResize(viewSizeX, viewSizeY)
 end
 
 function widget:DrawWorld()
-  
+  if not gDrawingFormation then
+	  widgetHandler:RemoveWidgetCallIn("DrawWorld", self)
+    return false
+  end
+
+  local scaleX = math.abs(gFormationStopPosition[1] - gFormationStartPosition[1])
+  local scaleY = math.abs(gFormationStopPosition[3] - gFormationStartPosition[3])
+
+  local positionsByRole, _ = constructFormation(Spring.GetSelectedUnits(), gFormationStartPosition[1], gFormationStartPosition[3], scaleX, scaleY, 0)
+  for role, positions in pairs(positionsByRole) do
+    for _, position in pairs(positions) do
+      DrawFilledCircle(position, MINIMUM_SPACE / 3, 24)
+    end
+  end
 end
+
 function widget:DrawInMiniMap()
 	
 	glPushMatrix()
