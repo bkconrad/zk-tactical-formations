@@ -27,14 +27,44 @@ local ROLES = {
 
   SKIRMISHER = {
     armrock = true
+  },
+
+  CONSTRUCTOR = {
+    armrectr = true
+  },
+
+  ARTILLERY = {
+    armham = true
+  },
+
+  HEAVY = {
+    armsnipe = true
+  },
+
+  ASSAULT = {
+    armzeus = true
   }
+}
+
+local ROLE_COLORS = {
+  RAIDER      = { 0.0, 1.0, 0.0, 1.0 },
+  RIOT        = { 1.0, 0.0, 0.0, 1.0 },
+  HEAVY       = { 1.0, 1.0, 1.0, 1.0 },
+  ARTILLERY   = { 1.0, 0.0, 1.0, 1.0 },
+  CONSTRUCTOR = { 1.0, 1.0, 0.0, 1.0 },
+  ASSAULT     = { 1.0, 1.0, 0.0, 1.0 },
+  SKIRMISHER  = { 0.0, 0.0, 1.0, 1.0 }
 }
 
 local FORMATIONS = {
   default = {
-    RAIDER      = { -1, 1, 1, 0.5 },
-    RIOT        = { -1, .5, 1, 0 },
-    SKIRMISHER  = { -1, 0, 1, -1 }
+    ASSAULT     = { -1.0,  1.0,  1.0,  0.7 },
+    RIOT        = { -1.0,  0.7,  1.0,  0.5 },
+    RAIDER      = { -1.0,  0.5,  1.0,  0.2 },
+    SKIRMISHER  = { -1.0,  0.2,  1.0,  0.0 },
+    CONSTRUCTOR = { -1.0,  0.0,  1.0, -0.2 },
+    ARTILLERY   = { -1.0, -0.2,  1.0, -0.3 },
+    HEAVY       = { -0.5, -0.3,  1.0, -1.0 }
   }
 }
 
@@ -133,8 +163,8 @@ end
 function distributeWithinRectangle(unitIds, rectangle)
   local result = { }
   local x1, y1, x2, y2 = unpack(rectangle)
-  local perRow = math.min(#unitIds, math.abs(x2 - x1) / MINIMUM_SPACE)
-  local spacing = math.abs(x2 - x1) / perRow
+  local perRow = math.min(#unitIds, math.abs(x2 - x1) / MINIMUM_SPACE + 1)
+  local spacing = math.abs(x2 - x1) / (perRow - 1)
 
   local row = 0
   local col = 0
@@ -144,10 +174,11 @@ function distributeWithinRectangle(unitIds, rectangle)
 
     table.insert(result, {x, 0, y})
 
-    col = col + 1
-    if col >= perRow then
+    if col > perRow then
       col = 0
       row = row + 1
+    else
+      col = col + 1
     end
   end
 
@@ -824,6 +855,9 @@ function widget:DrawWorld()
   local positionsByRole, _ = constructFormation(Spring.GetSelectedUnits(), gFormationStartPosition[1], gFormationStartPosition[3], scaleX, scaleY, 0)
   for role, positions in pairs(positionsByRole) do
     for _, position in pairs(positions) do
+      glColor(0, 0, 0, 1.0)
+      DrawFilledCircle(position, MINIMUM_SPACE / 2, 24)
+      glColor(unpack(ROLE_COLORS[role]))
       DrawFilledCircle(position, MINIMUM_SPACE / 3, 24)
     end
   end
