@@ -133,8 +133,8 @@ end
 function distributeWithinRectangle(unitIds, rectangle)
   local result = { }
   local x1, y1, x2, y2 = unpack(rectangle)
-  local perRow = math.min(#unitIds, math.abs(y2 - y1) / MINIMUM_SPACE)
-  local spacing = math.abs(y2 - y1) / perRow
+  local perRow = math.min(#unitIds, math.abs(x2 - x1) / MINIMUM_SPACE)
+  local spacing = math.abs(x2 - x1) / perRow
 
   local row = 0
   local col = 0
@@ -674,8 +674,8 @@ function widget:MouseRelease(mx, my, mButton)
   local _, pos = spTraceScreenRay(mx, my, true, inMinimap)
   gFormationStopPosition = pos
   gDrawingFormation = false
-  local scaleX = math.abs(gFormationStopPosition[1] - gFormationStartPosition[1])
-  local scaleY = math.abs(gFormationStopPosition[3] - gFormationStartPosition[3])
+  local scaleX = math.abs(gFormationStopPosition[1] - gFormationStartPosition[1]) * 2
+  local scaleY = math.abs(gFormationStopPosition[3] - gFormationStartPosition[3]) * 2
 
   local result = issueFormation(Spring.GetSelectedUnits(), gFormationStartPosition[1], gFormationStartPosition[3], scaleX, scaleY, 0)
 	
@@ -818,8 +818,8 @@ function widget:DrawWorld()
     return false
   end
 
-  local scaleX = math.abs(gFormationStopPosition[1] - gFormationStartPosition[1])
-  local scaleY = math.abs(gFormationStopPosition[3] - gFormationStartPosition[3])
+  local scaleX = math.abs(gFormationStopPosition[1] - gFormationStartPosition[1]) * 2
+  local scaleY = math.abs(gFormationStopPosition[3] - gFormationStartPosition[3]) * 2
 
   local positionsByRole, _ = constructFormation(Spring.GetSelectedUnits(), gFormationStartPosition[1], gFormationStartPosition[3], scaleX, scaleY, 0)
   for role, positions in pairs(positionsByRole) do
