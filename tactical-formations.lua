@@ -4,7 +4,7 @@ function widget:GetInfo()
 		desc      = "Awesome tactical formations",
 		author    = "kaen", -- Based on 'Custom Formations 2' by Niobium and Skasi
 		version   = "v0.1",
-		date      = "Nov, 2014",
+		date      = "Dec, 2014",
 		license   = "GNU GPL, v2 or later",
 		layer     = 1000001,
 		enabled   = true,
@@ -37,6 +37,10 @@ local FORMATIONS = {
     SKIRMISHER  = { -1, 0, 1, -1 }
   }
 }
+
+local gDrawingFormation = false
+local gFormationStartPosition = nil
+local gFormationStopPosition = nil
 
 function table_print (tt, indent, done)
   done = done or {}
@@ -89,6 +93,7 @@ function issueFormation(unitIds, centerX, centerY, scaleX, scaleY, theta)
     }
     distributeWithinRectangle(roleUnitIds, rectangle)
   end
+  return true
 end
 
 function groupUnitsByRole(unitIds)
@@ -559,87 +564,77 @@ end
 --------------------------------------------------------------------------------
 function widget:MousePress(mx, my, mButton)
 	
-	lineLength = 0
-	-- Where did we click
-	inMinimap = spIsAboveMiniMap(mx, my)
-	if inMinimap and not MiniMapFullProxy then return false end
-	
-	-- Get command that would've been issued
-	local _, activeCmdID = spGetActiveCommand()
-	if activeCmdID then
-		if mButton ~= 1 then 
-			return false 
-		end
-		
-		usingCmd = activeCmdID
-		usingRMB = false
-	else
-		if mButton ~= 3 then 
-			return false 
-		end
-		
-		local _, defaultCmdID = spGetDefaultCommand()
-		if not defaultCmdID then return false end
-		
-		local overrideCmdID = overrideCmds[defaultCmdID]
-		if overrideCmdID then
-			
-			local targType, targID = spTraceScreenRay(mx, my, false, inMinimap)
-			if targType == 'unit' then
-				overriddenCmd = defaultCmdID
-				overriddenTarget = targID
-			elseif targType == 'feature' then
-				overriddenCmd = defaultCmdID
-				overriddenTarget = targID + maxUnits
-			else
-				-- We can't reversibly override a command if we can't get the original target, so we give up overriding it.
-				return false
-			end
-			
-			usingCmd = overrideCmdID
-		else
-			overriddenCmd = nil
-			overriddenTarget = nil
-			
-			usingCmd = defaultCmdID
-		end
-		
-		usingRMB = true
-	end
-	
-	-- Without this, the unloads issued will use the area of the last area unload
-	if usingCmd == CMD_UNLOADUNITS then
-		usingCmd = CMD_UNLOADUNIT
-	end
-	
-	-- Is this command eligible for a custom formation ?
-	local alt, ctrl, meta, shift = GetModKeys()
-	if not (formationCmds[usingCmd] and (alt or not requiresAlt[usingCmd])) then
-		return false
-	end
-	
-	-- Get clicked position
-	local _, pos = spTraceScreenRay(mx, my, true, inMinimap)
-	if not pos then return false end
-	
-	-- Setup formation node array
-	-- if not AddFNode(pos) then return false end
-	
-	-- Is this line a path candidate (We don't do a path off an overriden command)
-	-- pathCandidate = (not overriddenCmd) and (spGetSelectedUnitsCount()==1 or (alt and not requiresAlt[usingCmd]))
+  lineLength = 0
+  -- Where did we click
+  inMinimap = spIsAboveMiniMap(mx, my)
+  if inMinimap and not MiniMapFullProxy then return false end
+  
+  -- Get command that would've been issued
+  local _, activeCmdID = spGetActiveCommand()
+  if activeCmdID then
+    if mButton ~= 1 then 
+      return false 
+    end
+    
+    usingCmd = activeCmdID
+    usingRMB = false
+  else
+    if mButton ~= 3 then 
+      return false 
+    end
+    
+    local _, defaultCmdID = spGetDefaultCommand()
+    if not defaultCmdID then return false end
+    
+    local overrideCmdID = overrideCmds[defaultCmdID]
+    if overrideCmdID then
+      
+      local targType, targID = spTraceScreenRay(mx, my, false, inMinimap)
+      if targType == 'unit' then
+        overriddenCmd = defaultCmdID
+        overriddenTarget = targID
+      elseif targType == 'feature' then
+        overriddenCmd = defaultCmdID
+        overriddenTarget = targID + maxUnits
+      else
+        -- We can't reversibly override a command if we can't get the original target, so we give up overriding it.
+        return false
+      end
+      
+      usingCmd = overrideCmdID
+    else
+      overriddenCmd = nil
+      overriddenTarget = nil
+      
+      usingCmd = defaultCmdID
+    end
+    
+    usingRMB = true
+  end
+  
+  -- Without this, the unloads issued will use the area of the last area unload
+  if usingCmd == CMD_UNLOADUNITS then
+    usingCmd = CMD_UNLOADUNIT
+  end
+  
+  -- Is this command eligible for a custom formation ?
+  local alt, ctrl, meta, shift = GetModKeys()
+  if not (formationCmds[usingCmd] and (alt or not requiresAlt[usingCmd])) then
+    return false
+  end
+  
+  -- Get clicked position
+  local _, pos = spTraceScreenRay(mx, my, true, inMinimap)
+  if not pos then return false end
 
-  issueFormation(Spring.GetSelectedUnits(), pos[1], pos[3], 500, 500, 0)
-	
-	-- We handled the mouse press
-	return true
+  gDrawingFormation = true
+  gFormationStartPosition = pos
+  
+  -- We handled the mouse press
+  return true
 end
+
 function widget:MouseMove(mx, my, dx, dy, mButton)
-	
-	-- It is possible for MouseMove to fire after MouseRelease
-	if #fNodes == 0 then
-		return false
-	end
-	
 	-- Minimap-specific checks
 	if inMinimap then
 		totaldxy = totaldxy + dx*dx + dy*dy
@@ -652,175 +647,23 @@ function widget:MouseMove(mx, my, dx, dy, mButton)
 	local _, pos = spTraceScreenRay(mx, my, true, inMinimap)
 	if not pos then return false end
 	
-	-- Add the new formation node
-	if not AddFNode(pos) then return false end
-	
-	-- Have we started drawing a line?
-	if #fNodes == 2 then
-		
-		-- We have enough nodes to start drawing now
-		widgetHandler:UpdateWidgetCallIn("DrawInMiniMap", self)
-		widgetHandler:UpdateWidgetCallIn("DrawWorld", self)
-		
-		-- If the line is a path, start the units moving to this node
-		if pathCandidate then
-			
-			local alt, ctrl, meta, shift = GetModKeys()
-			local cmdOpts = GetCmdOpts(false, ctrl, meta, shift, usingRMB) -- using alt uses springs box formation, so we set it off always
-			GiveNotifyingOrder(usingCmd, pos, cmdOpts)
-			lastPathPos = pos
-			
-			draggingPath = true
-		end
-	else
-		-- Are we dragging a path?
-		if draggingPath then
-			
-			local dx, dz = pos[1] - lastPathPos[1], pos[3] - lastPathPos[3]
-			if (dx*dx + dz*dz) > minPathSpacingSq then
-				
-				local alt, ctrl, meta, shift = GetModKeys()
-				local cmdOpts = GetCmdOpts(false, ctrl, meta, true, usingRMB) -- using alt uses springs box formation, so we set it off always
-				GiveNonNotifyingOrder(usingCmd, pos, cmdOpts)
-				lastPathPos = pos
-			end
-		end
-	end
-	
 	return false
 end
+
 function widget:MouseRelease(mx, my, mButton)
 
-	local units = {}
-	local selUnits = spGetSelectedUnits()
+  local _, pos = spTraceScreenRay(mx, my, true, inMinimap)
+  gFormationStopPosition = pos
+  gDrawingFormation = false
+  local scaleX = math.abs(gFormationStopPosition[1] - gFormationStartPosition[1])
+  local scaleY = math.abs(gFormationStopPosition[3] - gFormationStartPosition[3])
 	
-	-- It is possible for MouseRelease to fire after MouseRelease
-	if #fNodes == 0 then
-		return false
-	end
-	
-	-- Modkeys / command reset
-	local alt, ctrl, meta, shift = GetModKeys()
-	if not usingRMB then
-		if shift then
-			endShift = true -- Reset on release of shift
-		else
-			spSetActiveCommand(0) -- Reset immediately
-		end
-	end
-	
-	-- Are we going to use the drawn formation?
-	local usingFormation = true
-	
-	-- Override checking
-	if overriddenCmd then
-		
-		local targetID
-		local targType, targID = spTraceScreenRay(mx, my, false, inMinimap)
-		if targType == 'unit' then
-			targetID = targID
-		elseif targType == 'feature' then
-			targetID = targID + maxUnits
-		end
-		
-		if targetID and targetID == overriddenTarget then
-			
-			-- Signal that we are no longer using the drawn formation
-			usingFormation = false
-			
-			-- Process the original command instead
-			local cmdOpts = GetCmdOpts(alt, ctrl, meta, shift, usingRMB)
-			GiveNotifyingOrder(overriddenCmd, {overriddenTarget}, cmdOpts)
-		end
-	end
-	
-	-- Using path? If so then we do nothing
-	if draggingPath then
-		
-		draggingPath = false
-		
-	-- Using formation? If so then it's time to calculate and issue orders.
-	elseif usingFormation then
-		
-		-- Add final position (Sometimes we don't get the last MouseMove before this MouseRelease)
-		if (not inMinimap) or spIsAboveMiniMap(mx, my) then
-			local _, pos = spTraceScreenRay(mx, my, true, inMinimap)
-			if pos then
-				AddFNode(pos)
-			end
-		end
-		
-		-- Get command options
-		local cmdOpts = GetCmdOpts(alt, ctrl, meta, shift, usingRMB)
-		
-		-- Single click ? (no line drawn)
-		--if (#fNodes == 1) then
-		if fDists[#fNodes] < minFormationLength then
-			-- We should check if any units are able to execute it,
-			-- but the order is small enough network-wise that the tiny bug potential isn't worth it.
-			GiveNotifyingOrder(usingCmd, fNodes[1], cmdOpts)
-		else
-			-- Order is a formation
-			-- Are any units able to execute it?
-			local mUnits = GetExecutingUnits(usingCmd)
-			if #mUnits > 0 then
-				
-				local interpNodes = GetInterpNodes(mUnits)
-				
-				local orders
-				if (#mUnits <= maxHungarianUnits) then
-					orders = GetOrdersHungarian(interpNodes, mUnits, #mUnits, shift and not meta)
-				else
-					orders = GetOrdersNoX(interpNodes, mUnits, #mUnits, shift and not meta)
-				end
-				
-				if meta then
-					local altOpts = GetCmdOpts(true, false, false, false, false)
-					for i = 1, #orders do
-						local orderPair = orders[i]
-						local orderPos = orderPair[2]
-						GiveNotifyingOrderToUnit(orderPair[1], CMD_INSERT, {0, usingCmd, cmdOpts.coded, orderPos[1], orderPos[2], orderPos[3]}, altOpts)
-					end
-				else
-					for i = 1, #orders do
-						local orderPair = orders[i]
-						GiveNotifyingOrderToUnit(orderPair[1], usingCmd, orderPair[2], cmdOpts)
-					end
-				end
-			end
-		end
-		
-		-- Move Speed (Applicable to every order)
-		local wantedSpeed = 99999 -- High enough to exceed all units speed, but not high enough to cause errors (i.e. vs math.huge)
-		
-		if ctrl then
-			local selUnits = spGetSelectedUnits()
-			for i = 1, #selUnits do
-				local uSpeed = UnitDefs[spGetUnitDefID(selUnits[i])].speed
-				if uSpeed > 0 and uSpeed < wantedSpeed then
-					wantedSpeed = uSpeed
-				end
-			end
-		end
-		
-		-- Directly giving speed order appears to work perfectly, including with shifted orders ...
-		-- ... But other widgets CMD.INSERT the speed order into the front (Posn 1) of the queue instead (which doesn't work with shifted orders)
-		local speedOpts = GetCmdOpts(alt, ctrl, meta, shift, true)
-		GiveNotifyingOrder(CMD_SET_WANTED_MAX_SPEED, {wantedSpeed / 30}, speedOpts)
-	end
-	
-	if #fNodes > 1 then
-		dimmCmd = usingCmd
-		dimmNodes = fNodes
-		dimmAlpha = 1.0
-		widgetHandler:UpdateWidgetCallIn("Update", self)
-	end
-	
-	fNodes = {}
-	fDists = {}
-	
-	return true
+  gFormationStartPosition = nil
+  gFormationStopPosition = nil
+
+  return issueFormation(Spring.GetSelectedUnits(), pos[1], pos[3], scaleX, scaleY, 0)
 end
+
 function widget:KeyRelease(key)
 	if (key == keyShift) and endShift then
 		spSetActiveCommand(0)
