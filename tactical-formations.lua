@@ -81,8 +81,22 @@ function to_string( tbl )
 end
 
 function issueFormation(unitIds, centerX, centerY, scaleX, scaleY, theta)
+  local positionsByRole, unitsByRole = constructFormation(unitIds, centerX, centerY, scaleX, scaleY, theta)
+  if not (positionsByRole and unitsByRole) then return false end
+
+  -- TODO: assign positions to closest unit
+  for role, positions in pairs(positionsByRole) do
+    for i, position in pairs(positions) do
+      Spring.GiveOrderToUnit(unitsByRole[role][i], CMD.MOVE, position, { nil, nil, nil })
+    end
+  end
+end
+
+function constructFormation(unitIds, centerX, centerY, scaleX, scaleY, theta)
   if type(unitIds) ~= 'table' or #unitIds < 1 then return false end
+
   local unitsByRole = groupUnitsByRole(unitIds)
+  local positionsByRole = { }
   for role, roleUnitIds in pairs(unitsByRole) do
     local rectangle = FORMATIONS['default'][role]
     rectangle = {
@@ -91,9 +105,11 @@ function issueFormation(unitIds, centerX, centerY, scaleX, scaleY, theta)
       rectangle[3] * scaleX + centerX,
       rectangle[4] * scaleY + centerY
     }
-    distributeWithinRectangle(roleUnitIds, rectangle)
+    
+    positionsByRole[role] = distributeWithinRectangle(roleUnitIds, rectangle)
   end
-  return true
+
+  return positionsByRole, unitsByRole
 end
 
 function groupUnitsByRole(unitIds)
@@ -115,23 +131,18 @@ function groupUnitsByRole(unitIds)
 end
 
 function distributeWithinRectangle(unitIds, rectangle)
+  local result = { }
   local x1, y1, x2, y2 = unpack(rectangle)
   local perRow = math.min(#unitIds, math.abs(y2 - y1) / MINIMUM_SPACE)
   local spacing = math.abs(y2 - y1) / perRow
 
   local row = 0
   local col = 0
-  Spring.Echo(' ')
-  Spring.Echo('x1: ' .. x1)
-  Spring.Echo('y1: ' .. y1)
-  Spring.Echo('x2: ' .. x2)
-  Spring.Echo('y2: ' .. y2)
   for _, id in pairs(unitIds) do
     local x = x1 + spacing * col
     local y = y1 + spacing * row
 
-    Spring.Echo(tostring(x) .. ', ' .. tostring(y))
-    Spring.GiveOrderToUnit(id, CMD.MOVE, {x, 0, y}, { nil, nil, nil, nil, nil })
+    table.insert(result, {x, 0, y})
 
     col = col + 1
     if col >= perRow then
@@ -139,6 +150,8 @@ function distributeWithinRectangle(unitIds, rectangle)
       row = row + 1
     end
   end
+
+  return result
 end
 
 --------------------------------------------------------------------------------
@@ -642,6 +655,11 @@ function widget:MouseMove(mx, my, dx, dy, mButton)
 			return false
 		end
 	end
+  
+
+  if gDrawingFormation then
+    widgetHandler:UpdateWidgetCallIn("DrawWorld", self)
+  end
 	
 	-- Get clicked position
 	local _, pos = spTraceScreenRay(mx, my, true, inMinimap)
@@ -792,30 +810,7 @@ function widget:ViewResize(viewSizeX, viewSizeY)
 end
 
 function widget:DrawWorld()
-	-- Draw lines when a path is drawn instead of a formation, OR when drawmode for formations is not "dots" only
-	if pathCandidate or options.drawmode.value ~= "dots" then
-		DrawFormationLines(tVerts, 2)
-	end
-	-- Draw dots when no path is drawn AND nodenumber is high enough AND drawmode for formations is not "lines" only
-	if not pathCandidate and (#fNodes > 1 or #dimmNodes > 1) and options.drawmode.value ~= "lines" then
-		local camX, camY, camZ = spGetCameraPosition()
-		local at, p = spTraceScreenRay(Xs,Ys,true,false,false)
-		if at == "ground" then 
-			local dx, dy, dz = camX-p[1], camY-p[2], camZ-p[3]
-			--zoomY = ((dx*dx + dy*dy + dz*dz)*0.01)^0.25	--tests show that sqrt(sqrt(x)) is faster than x^0.25
-			zoomY = sqrt(dx*dx + dy*dy + dz*dz)
-		else
-			--zoomY = sqrt((camY - max(spGetGroundHeight(camX, camZ), 0))*0.1)
-			zoomY = camY - max(spGetGroundHeight(camX, camZ), 0)
-		end
-		if zoomY < 6 then 
-			zoomY = 6 
-		end
-		if lineLength > 0 then  --don't try and draw if the command was cancelled by having two mouse buttons pressed at once
-			local unitCount = spGetSelectedUnitsCount()
-			DrawFormationDots(tVerts, zoomY, unitCount)
-		end
-	end
+  
 end
 function widget:DrawInMiniMap()
 	
