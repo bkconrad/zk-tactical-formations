@@ -38,8 +38,13 @@ local ROLES = {
   },
 
   HEAVY = {
-    armsnipe = true
+    armsnipe = true,
+    spherecloaker = true
   },
+
+  AA = {
+    armjeth = true
+  }
 
   ASSAULT = {
     armzeus = true
@@ -53,6 +58,7 @@ local ROLE_COLORS = {
   ARTILLERY   = { 1.0, 0.0, 1.0, 1.0 },
   CONSTRUCTOR = { 1.0, 1.0, 0.0, 1.0 },
   ASSAULT     = { 1.0, 1.0, 0.0, 1.0 },
+  AA          = { 0.8, 0.8, 1.0, 1.0 },
   SKIRMISHER  = { 0.0, 0.0, 1.0, 1.0 }
 }
 
@@ -64,7 +70,8 @@ local FORMATIONS = {
     SKIRMISHER  = { -1.0,  0.2,  1.0,  0.0 },
     CONSTRUCTOR = { -1.0,  0.0,  1.0, -0.2 },
     ARTILLERY   = { -1.0, -0.2,  1.0, -0.3 },
-    HEAVY       = { -0.5, -0.3,  1.0, -1.0 }
+    AA          = { -0.5, -0.3,  0.5, -0.5 },
+    HEAVY       = { -0.5, -0.5,  0.5, -0.8 }
   }
 }
 
