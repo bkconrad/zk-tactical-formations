@@ -166,10 +166,11 @@ function issueFormation(unitIds, centerX, centerY, scaleX, scaleY, theta)
   local positionsByRole, unitsByRole = constructFormation(unitIds, centerX, centerY, scaleX, scaleY, theta)
   if not (positionsByRole and unitsByRole) then return false end
 
-  -- TODO: assign positions to closest unit
   for role, positions in pairs(positionsByRole) do
-    for i, position in pairs(positions) do
-      Spring.GiveOrderToUnit(unitsByRole[role][i], CMD.MOVE, position, { nil, nil, nil })
+    local orders = GetOrdersHungarian(positions, unitsByRole[role], #unitsByRole[role], false)
+    for _, order in pairs(orders) do
+      local unitId, position = unpack(order)
+      Spring.GiveOrderToUnit(unitId, CMD.MOVE, position, { nil, nil, nil })
     end
   end
 end
