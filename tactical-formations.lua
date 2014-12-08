@@ -151,8 +151,12 @@ local FORMATIONS = {
 }
 
 local gDrawingFormation = false
+local gRotatingFormation = false
 local gFormationStartPosition = nil
 local gFormationStopPosition = nil
+local gScaleX = 0
+local gScaleY = 0
+local gTheta = 0
 
 function table_print (tt, indent, done)
   done = done or {}
@@ -212,16 +216,30 @@ function constructFormation(unitIds, centerX, centerY, scaleX, scaleY, theta)
   for role, roleUnitIds in pairs(unitsByRole) do
     local rectangle = FORMATIONS['default'][role]
     rectangle = {
-      rectangle[1] * scaleX + centerX,
-      rectangle[2] * scaleY + centerY,
-      rectangle[3] * scaleX + centerX,
-      rectangle[4] * scaleY + centerY
+      rectangle[1] * scaleX,
+      rectangle[2] * scaleY,
+      rectangle[3] * scaleX,
+      rectangle[4] * scaleY
     }
     
     positionsByRole[role] = distributeWithinRectangle(roleUnitIds, rectangle)
+    rotatePoints(positionsByRole[role], theta)
+    translatePoints(positionsByRole[role], centerX, centerY)
   end
 
   return positionsByRole, unitsByRole
+end
+
+function rotatePoints(points, theta)
+  for k,v in pairs(points) do
+    points[k] = { v[1] * math.cos(theta) - v[3] * math.sin(theta), v[2], v[1] * math.sin(theta) + v[3] * math.cos(theta) }
+  end
+end
+
+function translatePoints(points, dx, dz)
+  for k,v in pairs(points) do
+    points[k] = { v[1] + dx, v[2], v[3] + dz }
+  end
 end
 
 function groupUnitsByRole(unitIds)
@@ -753,8 +771,13 @@ function widget:MousePress(mx, my, mButton)
   local _, pos = spTraceScreenRay(mx, my, true, inMinimap)
   if not pos then return false end
 
-  gDrawingFormation = true
-  gFormationStartPosition = pos
+  if not (gDrawingFormation or gRotatingFormation) then
+    gTheta = 0
+    gScaleX = 0
+    gScaleY = 0
+    gDrawingFormation = true
+    gFormationStartPosition = pos
+  end
   
   -- We handled the mouse press
   return true
@@ -769,8 +792,7 @@ function widget:MouseMove(mx, my, dx, dy, mButton)
 		end
 	end
   
-
-  if gDrawingFormation then
+  if gDrawingFormation or gRotatingFormation then
     widgetHandler:UpdateWidgetCallIn("DrawWorld", self)
   end
 	
@@ -785,15 +807,29 @@ end
 function widget:MouseRelease(mx, my, mButton)
 
   local _, pos = spTraceScreenRay(mx, my, true, inMinimap)
+  local result = false
   gFormationStopPosition = pos
-  gDrawingFormation = false
-  local scaleX = math.abs(gFormationStopPosition[1] - gFormationStartPosition[1])
-  local scaleY = math.abs(gFormationStopPosition[3] - gFormationStartPosition[3])
 
-  local result = issueFormation(Spring.GetSelectedUnits(), gFormationStartPosition[1], gFormationStartPosition[3], scaleX, scaleY, 0)
-	
-  gFormationStartPosition = nil
-  gFormationStopPosition = nil
+  local dx = gFormationStopPosition[1] - gFormationStartPosition[1]
+  local dz = gFormationStopPosition[3] - gFormationStartPosition[3]
+  if gRotatingFormation then
+    gRotatingFormation = false
+    gTheta = math.atan2(dz, dx)
+
+    -- This is where the magic happens
+    result = issueFormation(Spring.GetSelectedUnits(), gFormationStartPosition[1], gFormationStartPosition[3], gScaleX, gScaleY, gTheta)
+
+    gFormationStartPosition = nil
+    gFormationStopPosition = nil
+
+  elseif gDrawingFormation then
+
+    gScaleX = math.abs(dx)
+    gScaleY = math.abs(dz)
+    gRotatingFormation = true
+    gDrawingFormation = false
+
+  end
 
   return result
 end
@@ -926,15 +962,21 @@ function widget:ViewResize(viewSizeX, viewSizeY)
 end
 
 function widget:DrawWorld()
-  if not gDrawingFormation then
+  if not (gDrawingFormation or gRotatingFormation) then
 	  widgetHandler:RemoveWidgetCallIn("DrawWorld", self)
     return false
   end
 
-  local scaleX = math.abs(gFormationStopPosition[1] - gFormationStartPosition[1])
-  local scaleY = math.abs(gFormationStopPosition[3] - gFormationStartPosition[3])
+  local dx = gFormationStopPosition[1] - gFormationStartPosition[1]
+  local dz = gFormationStopPosition[3] - gFormationStartPosition[3]
+  if gDrawingFormation then
+    gScaleX = math.abs(dx)
+    gScaleY = math.abs(dz)
+  elseif gRotatingFormation then
+    gTheta = math.atan2(dz, dx)
+  end
 
-  local positionsByRole, _ = constructFormation(Spring.GetSelectedUnits(), gFormationStartPosition[1], gFormationStartPosition[3], scaleX, scaleY, 0)
+  local positionsByRole, _ = constructFormation(Spring.GetSelectedUnits(), gFormationStartPosition[1], gFormationStartPosition[3], gScaleX, gScaleY, gTheta)
   for role, positions in pairs(positionsByRole) do
     for _, position in pairs(positions) do
       glColor(0, 0, 0, 1.0)
