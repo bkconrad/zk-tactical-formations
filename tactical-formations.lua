@@ -845,24 +845,6 @@ end
 -- Drawing
 --------------------------------------------------------------------------------
 
-local function tVerts(verts)
-	for i = 1, #verts do
-		local v = verts[i]
-        if v[1] and v[2] and v[3] then
-            glVertex(v[1], v[2], v[3])
-        end
-	end
-end
-
-local function tVertsMinimap(verts)
-	for i = 1, #verts do
-		local v = verts[i]
-		if v[1] and v[3] then
-            glVertex(v[1], v[3], 1)
-        end
-	end
-end
-
 local function DrawFilledCircle(pos, size, cornerCount)
 	glPushMatrix()
 	glTranslate(pos[1], pos[2], pos[3])
@@ -873,92 +855,6 @@ local function DrawFilledCircle(pos, size, cornerCount)
 		end
 	end)
 	glPopMatrix()
-end
-
-local function DrawFilledCircleOutFading(pos, size, cornerCount)
-	glPushMatrix()
-	glTranslate(pos[1], pos[2], pos[3])
-	glBeginEnd(GL.TRIANGLE_FAN, function()
-		SetColor(usingCmd, 1)
-		glVertex(0,0,0)
-		SetColor(usingCmd, 0)
-		for t = 0, pi2, pi2 / cornerCount do
-			glVertex(sin(t) * size, 0, cos(t) * size)
-		end
-	end)
-	-- draw extra glow as base
-	-- has hardly any effect but doubles gpuTime, so disabled for now
-	-- glBeginEnd(GL.TRIANGLE_FAN, function()
-		-- SetColor(usingCmd, 1/15)
-		-- glVertex(0,0,0)
-		-- SetColor(usingCmd, 0)
-		-- local baseSize = size * 2.8
-		-- for t = 0, pi2, pi2 / 8 do
-			-- glVertex(sin(t) * baseSize, 0, cos(t) * baseSize)
-		-- end
-	-- end)
-	glPopMatrix()
-end
-
-local function DrawFormationDots(vertFunction, zoomY, unitCount)
-	local currentLength = 0
-	local lengthPerUnit = lineLength / (unitCount-1)
-	local lengthUnitNext = lengthPerUnit
-	local dotSize = sqrt(zoomY*0.1)*options.dotsize.value
-	if (#fNodes > 1) and (unitCount > 1) then
-		SetColor(usingCmd, 1)
-		DrawFilledCircleOutFading(fNodes[1], dotSize, 8)
-		if (#fNodes > 2) then
-			for i=1, #fNodes-2 do -- first and last circle are drawn before and after the for loop
-				local x = fNodes[i][1]
-				local y = fNodes[i][3]
-				local x2 = fNodes[i+1][1]
-				local y2 = fNodes[i+1][3]
-				local dx = x - x2
-				local dy = y - y2
-				local length = sqrt((dx*dx)+(dy*dy))
-				while (currentLength + length >= lengthUnitNext) do
-					local factor = (lengthUnitNext - currentLength) / length
-					local factorPos =
-						{fNodes[i][1] + ((fNodes[i+1][1] - fNodes[i][1]) * factor),
-						fNodes[i][2] + ((fNodes[i+1][2] - fNodes[i][2]) * factor),
-						fNodes[i][3] + ((fNodes[i+1][3] - fNodes[i][3]) * factor)}
-					DrawFilledCircleOutFading(factorPos, dotSize, 8)
-					lengthUnitNext = lengthUnitNext + lengthPerUnit
-				end
-				currentLength = currentLength + length
-			end
-		end
-		DrawFilledCircleOutFading(fNodes[#fNodes], dotSize, 8)
-	end
-end
-
-local function DrawFormationLines(vertFunction, lineStipple)
-	
-	glLineStipple(lineStipple, 4095)
-	glLineWidth(options.linewidth.value)
-	
-	if #fNodes > 1 then
-		SetColor(usingCmd, 1.0)
-		glBeginEnd(GL_LINE_STRIP, vertFunction, fNodes)
-		glColor(1,1,1,1)
-	end
-	
-	if #dimmNodes > 1 then
-		SetColor(dimmCmd, dimmAlpha)
-		glBeginEnd(GL_LINE_STRIP, vertFunction, dimmNodes)
-		glColor(1,1,1,1)
-	end
-	
-	glLineWidth(1.0)
-	glLineStipple(false)
-end
-
-local Xs, Ys = spGetViewGeometry()
-Xs, Ys = Xs*0.5, Ys*0.5
-function widget:ViewResize(viewSizeX, viewSizeY)
-	Xs, Ys = spGetViewGeometry()
-	Xs, Ys = Xs*0.5, Ys*0.5
 end
 
 function widget:DrawWorld()
@@ -985,33 +881,6 @@ function widget:DrawWorld()
       DrawFilledCircle(position, MINIMUM_SPACE / 3, 24)
     end
   end
-end
-
-function widget:DrawInMiniMap()
-	
-	glPushMatrix()
-		glLoadIdentity()
-		glTranslate(0, 1, 0)
-		glScale(1 / mapSizeX, -1 / mapSizeZ, 1)
-		
-		DrawFormationLines(tVertsMinimap, 1)
-	glPopMatrix()
-end
-
-function widget:Update(deltaTime)
-	
-	dimmAlpha = dimmAlpha - lineFadeRate * deltaTime
-	
-	if dimmAlpha <= 0 then
-		
-		dimmNodes = {}
-		widgetHandler:RemoveWidgetCallIn("Update", self)
-		
-		if #fNodes == 0 then
-			widgetHandler:RemoveWidgetCallIn("DrawWorld", self)
-			widgetHandler:RemoveWidgetCallIn("DrawInMiniMap", self)
-		end
-	end
 end
 
 ---------------------------------------------------------------------------------------------------------
