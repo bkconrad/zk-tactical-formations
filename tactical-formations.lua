@@ -14,6 +14,34 @@ end
 
 VFS.Include("LuaRules/Configs/customcmds.h.lua")
 
+--------------------------------------------------------------------------------
+-- Globals
+--------------------------------------------------------------------------------
+local maxHungarianUnits = defaultHungarianUnits -- Also set when loading config
+
+local fNodes = {} -- Formation nodes, filled as we draw
+local fDists = {} -- fDists[i] = distance from node 1 to node i
+local totaldxy = 0 -- Measure of distance mouse has moved, used to unjag lines drawn in minimap
+local lineLength = 0 -- Total length of the line
+
+local dimmCmd = nil -- The dimming command (Used for color)
+local dimmNodes = {} -- The current nodes of dimming line
+local dimmAlpha = 0 -- The current alpha of dimming line
+
+local pathCandidate = false -- True if we should start a path on mouse move
+local draggingPath = false -- True if we are dragging a path for unit(s) to follow
+local lastPathPos = nil -- The last point added to the path, used for min-distance check
+
+local overriddenCmd = nil -- The command we ignored in favor of move
+local overriddenTarget = nil -- The target (for params) we ignored
+
+local usingCmd = nil -- The command to execute across the line
+local usingRMB = false -- If the command is the default it uses right click, otherwise it is active and uses left click
+local inMinimap = false -- Is the line being drawn in the minimap
+local endShift = false -- True to reset command when shift is released
+
+local MiniMapFullProxy = (Spring.GetConfigInt("MiniMapFullProxy", 0) == 1)
+
 local MINIMUM_SPACE = 50
 
 local ROLES = {
@@ -170,7 +198,7 @@ function issueFormation(unitIds, centerX, centerY, scaleX, scaleY, theta)
     local orders = GetOrdersHungarian(positions, unitsByRole[role], #unitsByRole[role], false)
     for _, order in pairs(orders) do
       local unitId, position = unpack(order)
-      Spring.GiveOrderToUnit(unitId, CMD.MOVE, position, { nil, nil, nil })
+      Spring.GiveOrderToUnit(unitId, usingCmd, position, { nil, nil, nil })
     end
   end
 end
@@ -349,34 +377,6 @@ local positionCmds = {
 	[CMD.PATROL]=true,		[CMD.CAPTURE]=true,		[CMD.FIGHT]=true, 		[CMD.MANUALFIRE]=true,		[CMD_JUMP]=true, -- jump
 	[CMD.UNLOAD_UNIT]=true,	[CMD.UNLOAD_UNITS]=true,[CMD.LOAD_UNITS]=true,	[CMD.GUARD]=true,		[CMD.AREA_ATTACK] = true,
 }
-
---------------------------------------------------------------------------------
--- Globals
---------------------------------------------------------------------------------
-local maxHungarianUnits = defaultHungarianUnits -- Also set when loading config
-
-local fNodes = {} -- Formation nodes, filled as we draw
-local fDists = {} -- fDists[i] = distance from node 1 to node i
-local totaldxy = 0 -- Measure of distance mouse has moved, used to unjag lines drawn in minimap
-local lineLength = 0 -- Total length of the line
-
-local dimmCmd = nil -- The dimming command (Used for color)
-local dimmNodes = {} -- The current nodes of dimming line
-local dimmAlpha = 0 -- The current alpha of dimming line
-
-local pathCandidate = false -- True if we should start a path on mouse move
-local draggingPath = false -- True if we are dragging a path for unit(s) to follow
-local lastPathPos = nil -- The last point added to the path, used for min-distance check
-
-local overriddenCmd = nil -- The command we ignored in favor of move
-local overriddenTarget = nil -- The target (for params) we ignored
-
-local usingCmd = nil -- The command to execute across the line
-local usingRMB = false -- If the command is the default it uses right click, otherwise it is active and uses left click
-local inMinimap = false -- Is the line being drawn in the minimap
-local endShift = false -- True to reset command when shift is released
-
-local MiniMapFullProxy = (Spring.GetConfigInt("MiniMapFullProxy", 0) == 1)
 
 --------------------------------------------------------------------------------
 -- Speedups
@@ -771,6 +771,8 @@ function widget:MouseRelease(mx, my, mButton)
 
     -- This is where the magic happens
     result = issueFormation(Spring.GetSelectedUnits(), gFormationStartPosition[1], gFormationStartPosition[3], gScaleX, gScaleY, gTheta)
+    Spring.SetActiveCommand(0)
+    usingCmd = nil
 
     gFormationStartPosition = nil
     gFormationStopPosition = nil
