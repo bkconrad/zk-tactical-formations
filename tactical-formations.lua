@@ -3,10 +3,10 @@ function widget:GetInfo()
 		name      = "Tactical Formations",
 		desc      = "Awesome tactical formations",
 		author    = "kaen", -- Based on 'Custom Formations 2' by Niobium and Skasi
-		version   = "v0.1",
+		version   = "v0.2",
 		date      = "Dec, 2014",
 		license   = "GNU GPL, v2 or later",
-		layer     = 1000001,
+		layer     = 999999,
 		enabled   = true,
 		handler   = true,
 	}
@@ -328,27 +328,19 @@ local lineFadeRate = 2.0
 local formationCmds = {
 	[CMD.MOVE] = true,
 	[CMD.FIGHT] = true,
-	[CMD.ATTACK] = true,
 	[CMD.PATROL] = true,
 	[CMD.UNLOAD_UNIT] = true,
 	[CMD_JUMP] = true, -- jump
-	[CMD_UNIT_SET_TARGET] = true, -- settarget
-	[CMD_UNIT_SET_TARGET_CIRCLE] = true, -- settarget
 }
 
 -- What commands require alt to be held (Must also appear in formationCmds)
 local requiresAlt = {
-	[CMD.ATTACK] = true,
-	[CMD.UNLOAD_UNIT] = true,
-	[CMD_UNIT_SET_TARGET] = true, -- settarget
-	[CMD_UNIT_SET_TARGET_CIRCLE] = true, -- settarget
 }
 
 -- Context-based default commands that can be overridden (i.e. guard when mouseover unit)
 -- If the mouse remains on the same target for both Press/Release then the formation is ignored and original command is issued.
 -- Normal logic will follow after override, i.e. must be a formationCmd to get formation, alt must be held if requiresAlt, etc.
 local overrideCmds = {
-	[CMD.GUARD] = CMD.MOVE,
 }
 
 -- What commands are issued at a position or unit/feature ID (Only used by GetUnitPosition)
@@ -456,13 +448,7 @@ local keyShift = 304
 -- Helper Functions
 --------------------------------------------------------------------------------
 local function GetModKeys()
-	
 	local alt, ctrl, meta, shift = spGetModKeyState()
-	
-	if spGetInvertQueueKey() then -- Shift inversion
-		shift = not shift
-	end
-	
 	return alt, ctrl, meta, shift
 end
 local function GetUnitFinalPosition(uID)
@@ -687,12 +673,14 @@ end
 --------------------------------------------------------------------------------
 -- Mouse/keyboard Callins
 --------------------------------------------------------------------------------
+local p = Spring.Echo
 function widget:MousePress(mx, my, mButton)
 	
   lineLength = 0
   -- Where did we click
   inMinimap = spIsAboveMiniMap(mx, my)
-  if inMinimap and not MiniMapFullProxy then return false end
+  if inMinimap then return false end
+  p('minimap')
   
   -- Get command that would've been issued
   local _, activeCmdID = spGetActiveCommand()
@@ -709,33 +697,10 @@ function widget:MousePress(mx, my, mButton)
     end
     
     local _, defaultCmdID = spGetDefaultCommand()
-    if not defaultCmdID then return false end
-    
-    local overrideCmdID = overrideCmds[defaultCmdID]
-    if overrideCmdID then
-      
-      local targType, targID = spTraceScreenRay(mx, my, false, inMinimap)
-      if targType == 'unit' then
-        overriddenCmd = defaultCmdID
-        overriddenTarget = targID
-      elseif targType == 'feature' then
-        overriddenCmd = defaultCmdID
-        overriddenTarget = targID + maxUnits
-      else
-        -- We can't reversibly override a command if we can't get the original target, so we give up overriding it.
-        return false
-      end
-      
-      usingCmd = overrideCmdID
-    else
-      overriddenCmd = nil
-      overriddenTarget = nil
-      
-      usingCmd = defaultCmdID
-    end
-    
+    usingCmd = defaultCmdID or CMD.MOVE
     usingRMB = true
   end
+  p('activecmd')
   
   -- Without this, the unloads issued will use the area of the last area unload
   if usingCmd == CMD_UNLOADUNITS then
@@ -744,20 +709,27 @@ function widget:MousePress(mx, my, mButton)
   
   -- Is this command eligible for a custom formation ?
   local alt, ctrl, meta, shift = GetModKeys()
-  if not (formationCmds[usingCmd] and (alt or not requiresAlt[usingCmd])) then
+  if not (formationCmds[usingCmd]) then
     return false
   end
+  p('formationcmds')
   
   -- Get clicked position
   local _, pos = spTraceScreenRay(mx, my, true, inMinimap)
   if not pos then return false end
+  p('position')
 
   if not (gDrawingFormation or gRotatingFormation) then
-    gTheta = 0
-    gScaleX = 0
-    gScaleY = 0
-    gDrawingFormation = true
-    gFormationStartPosition = pos
+    if shift and ctrl then
+      gTheta = 0
+      gScaleX = 0
+      gScaleY = 0
+      gDrawingFormation = true
+      gFormationStartPosition = pos
+    else
+      return false
+    end
+    p('started')
   end
   
   -- We handled the mouse press
