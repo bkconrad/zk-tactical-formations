@@ -18,36 +18,111 @@ local MINIMUM_SPACE = 50
 
 local ROLES = {
   RAIDER = {
-    armpw = true
+    amphraider3 = true,
+    armflea = true,
+    armpt = true,
+    armpw = true,
+    corak = true,
+    corclog = true, -- TODO
+    corfav = true,
+    corgator = true,
+    corpyro = true,
+    corsh = true,
+    corsub = true,
+    logkoda = true,
+    panther = true,
+    puppy = true,
   },
 
   RIOT = {
-    armwar = true
+    amphriot = true,
+    arm_venom = true,
+    armwar = true,
+    coresupp = true,
+    corlevlr = true,
+    cormak = true,
+    dclship = true,
+    hoverriot = true,
+    spiderriot = true,
   },
 
   SKIRMISHER = {
-    armrock = true
+    amphraider2 = true,
+    armrock = true,
+    armsptk = true,
+    cormist = true,
+    corroy = true,
+    corstorm = true,
+    nsaclash = true,
+    slowmort = true,
+    tawf114 = true,
   },
 
   CONSTRUCTOR = {
-    armrectr = true
+    amphcon = true,
+    arm_spider = true,
+    armrectr = true,
+    coracv = true,
+    corch = true,
+    corfast = true,
+    cornecro = true,
+    corned = true,
+    shipcon = true,
   },
 
   ARTILLERY = {
-    armham = true
+    armham = true,
+    armmerl = true,
+    armroy = true,
+    corgarp = true,
+    cormart = true,
+    jumpblackhole = true,
+    shieldarty = true,
+    trem = true,
   },
 
   HEAVY = {
+    amphassault = true,
+    amphtele = true,
+    armcrabe = true,
+    armmanni = true,
     armsnipe = true,
-    spherecloaker = true
+    armspy = true,
+    armtboat = true,
+    capturecar = true,
+    corcan = true,
+    core_spectre = true,
+    corgol = true,
+    corsktl = true, -- TODO
+    corsumo = true,
+    firewalker = true,
+    hoverdepthcharge = true,
+    serpent = true,
+    shieldfelon = true,
+    spherecloaker = true,
+    spherepole = true,
   },
 
   AA = {
-    armjeth = true
+    amphaa = true,
+    armaak = true,
+    armjeth = true,
+    corarch = true,
+    corcrash = true,
+    correap = true,
+    corsent = true,
+    hoveraa = true,
+    spideraa = true,
+    vehaa = true,
   },
 
   ASSAULT = {
-    armzeus = true
+    amphfloater = true,
+    armzeus = true,
+    corraid = true,
+    corthud = true,
+    hoverassault = true,
+    spiderassault = true,
   }
 }
 
