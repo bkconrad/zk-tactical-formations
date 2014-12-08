@@ -171,7 +171,7 @@ function distributeWithinRectangle(unitIds, rectangle)
   local result = { }
   local x1, y1, x2, y2 = unpack(rectangle)
   local perRow = math.min(#unitIds, math.abs(x2 - x1) / MINIMUM_SPACE + 1)
-  local spacing = math.abs(x2 - x1) / (perRow - 1)
+  local spacing = math.abs(x2 - x1) / math.max(perRow - 1, 1)
 
   local row = 0
   local col = 0
