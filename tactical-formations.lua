@@ -44,7 +44,7 @@ local ROLES = {
 
   AA = {
     armjeth = true
-  }
+  },
 
   ASSAULT = {
     armzeus = true
@@ -712,8 +712,8 @@ function widget:MouseRelease(mx, my, mButton)
   local _, pos = spTraceScreenRay(mx, my, true, inMinimap)
   gFormationStopPosition = pos
   gDrawingFormation = false
-  local scaleX = math.abs(gFormationStopPosition[1] - gFormationStartPosition[1]) * 2
-  local scaleY = math.abs(gFormationStopPosition[3] - gFormationStartPosition[3]) * 2
+  local scaleX = math.abs(gFormationStopPosition[1] - gFormationStartPosition[1])
+  local scaleY = math.abs(gFormationStopPosition[3] - gFormationStartPosition[3])
 
   local result = issueFormation(Spring.GetSelectedUnits(), gFormationStartPosition[1], gFormationStartPosition[3], scaleX, scaleY, 0)
 	
@@ -856,8 +856,8 @@ function widget:DrawWorld()
     return false
   end
 
-  local scaleX = math.abs(gFormationStopPosition[1] - gFormationStartPosition[1]) * 2
-  local scaleY = math.abs(gFormationStopPosition[3] - gFormationStartPosition[3]) * 2
+  local scaleX = math.abs(gFormationStopPosition[1] - gFormationStartPosition[1])
+  local scaleY = math.abs(gFormationStopPosition[3] - gFormationStartPosition[3])
 
   local positionsByRole, _ = constructFormation(Spring.GetSelectedUnits(), gFormationStartPosition[1], gFormationStartPosition[3], scaleX, scaleY, 0)
   for role, positions in pairs(positionsByRole) do
