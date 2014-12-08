@@ -234,21 +234,35 @@ function distributeWithinRectangle(unitIds, rectangle)
 
   local row = 0
   local col = 0
-  for _, id in pairs(unitIds) do
+  local offsetX, offsetY = calculateRowOffsets(#unitIds, perRow, #unitIds, spacing, math.abs(x2 - x1), math.abs(y2 - y1))
+  for i, id in ipairs(unitIds) do
     local x = x1 + spacing * col
     local y = y1 + spacing * row
 
-    table.insert(result, {x, 0, y})
+    table.insert(result, {x + offsetX, 0, y + offsetY})
 
     if col > perRow then
       col = 0
       row = row + 1
+      offsetX, offsetY = calculateRowOffsets(#unitIds, perRow, #unitIds - i, spacing, math.abs(x2 - x1), math.abs(y2 - y1))
     else
       col = col + 1
     end
   end
 
   return result
+end
+
+function calculateRowOffsets(totalUnits, unitsPerRow, unitsLeft, spacing, width, height)
+  local expectedWidth = (math.min(unitsPerRow, unitsLeft) - 1) * spacing
+  local offsetWidth = (width - expectedWidth) / 2
+
+  local rows = math.ceil(totalUnits / unitsPerRow)
+
+  local expectedHeight = (rows - 1) * spacing
+  local offsetHeight = (height - expectedHeight) / 2
+
+  return offsetWidth, offsetHeight
 end
 
 --------------------------------------------------------------------------------
